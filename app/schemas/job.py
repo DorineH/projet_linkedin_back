@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from datetime import datetime
-
+from typing import List
 
 class JobOut(BaseModel):
     id: int
-    job_id: str | None
+    jobId: str | int | None
     title: str | None
     company: str | None
     location: str | None
@@ -19,5 +19,8 @@ class Config:
 
 
 class JobsResponse(BaseModel):
-    items: list[JobOut]
+    items: List[JobOut]
     total: int
+    page: int
+    page_size: int
+    total_pages: int

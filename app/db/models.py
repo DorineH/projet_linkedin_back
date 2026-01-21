@@ -6,13 +6,14 @@ class Base(DeclarativeBase):
     pass
 
 class JobLeaddev(Base):
-    __tablename__ = "jobs_leaddev"
-
+    __tablename__ = "jobs"
+# jobs pour la bdd supabase connecté à n8n
+# jobs_leaddev pour la bdd supabase connecté à dbeaver
     # PK en base = serial4 => Integer
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # UNIQUE en base
-    job_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    jobId: Mapped[str | None] = mapped_column(String(255), unique=True)
 
     # Colonnes texte (on peut rester en Text, mais tu peux aussi respecter les tailles si tu veux)
     title: Mapped[str | None] = mapped_column(String(500))

@@ -1,3 +1,4 @@
+import math
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,7 @@ async def list_jobs(
     q: str | None = Query(default=None, description="Recherche texte (simple)"),
     company: str | None = None,
     contract_type: str | None = None,
-    active: bool | None = True,
+    active: bool | None = None,
     date_from: str | None = Query(default=None, example="2025-01-01"),
     date_to: str | None = Query(default=None, example="2025-12-31"),
     sort: str = Query(default="-posted_date", description="ex: -posted_date, title, company"),
@@ -45,8 +46,14 @@ async def list_jobs(
         offset=offset,
     )
 
-
-    return {"items": items, "total": total}
+    total_pages = max(1, math.ceil(total / limit))
+    return { 
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": limit,
+        "total_pages": total_pages
+    }
 
 
 @router.get("/health/db")
@@ -58,12 +65,12 @@ async def health_db(session: AsyncSession = Depends(get_session)):
         return {"db": "error", "detail": str(e)}
     
 
-@router.get("/jobs/{job_id}", response_model=JobOut)
+@router.get("/jobs/{jobId}", response_model=JobOut)
 async def get_job(
-    job_id: int,
+    jobId: int,
     session: AsyncSession = Depends(get_session),
 ):
-    stmt = select(JobLeaddev).where(JobLeaddev.id == job_id)
+    stmt = select(JobLeaddev).where(JobLeaddev.id == jobId)
     result = await session.execute(stmt)
     job = result.scalar_one_or_none()
 

@@ -11,7 +11,7 @@ async def search_jobs(
     q: Optional[str] = None,
     company: Optional[str] = None,
     contract_type: Optional[str] = None,
-    active: Optional[bool] = True,
+    active: Optional[bool] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     sort: str = "-posted_date",
