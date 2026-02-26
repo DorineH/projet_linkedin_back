@@ -1,6 +1,9 @@
 # app/db/models.py
+from datetime import datetime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Text, Boolean, DateTime, Integer
+from sqlalchemy import String, Text, Boolean, DateTime, Integer, UniqueConstraint
+import uuid
+from sqlalchemy.dialects.postgresql import UUID
 
 class Base(DeclarativeBase):
     pass
@@ -34,3 +37,21 @@ class JobLeaddev(Base):
 
     active: Mapped[bool | None] = mapped_column(Boolean)
     status: Mapped[str | None] = mapped_column(Text)
+
+
+class UserSavedJob(Base):
+    __tablename__ = "user_saved_jobs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_id", name="uix_user_job"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    job_id: Mapped[int] = mapped_column(Integer)
+
+    status: Mapped[str] = mapped_column(Text, default="saved")
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+    updated_at: Mapped[object | None] = mapped_column(DateTime(timezone=False), nullable=True)
