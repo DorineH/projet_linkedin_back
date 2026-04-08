@@ -12,7 +12,8 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     future=True,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    connect_args={"user": "postgres.cawpdbwfbsizrtbnttgk"}
     # connect_args={
     #     "statement_cache_size": 0,
     # }
