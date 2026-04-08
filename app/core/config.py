@@ -8,11 +8,10 @@ import os
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     APP_ENV: str = "dev"
     CORS_ORIGINS: List[AnyHttpUrl] | List[str] = ["http://localhost:5173"]
 
-       # Pydantic v2 : transforme "a,b" -> ["a","b"]
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def split_cors(cls, v):

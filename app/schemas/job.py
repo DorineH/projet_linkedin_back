@@ -15,7 +15,7 @@ class JobOut(BaseModel):
 
 
 class Config:
-    from_attributes = True # Pydantic v2: lit directement les ORM objects
+    from_attributes = True
 
 
 class JobsResponse(BaseModel):
