@@ -12,8 +12,6 @@ from app.db.models import UserSavedJob, JobLeaddev
 from app.schemas.saved_job import SavedJobCreate, SavedJobUpdate, SavedJobOut, JobOutLite
 from sqlalchemy import update, delete
 
-
-
 async def search_jobs(
     session: AsyncSession,
     q: Optional[str] = None,
@@ -30,7 +28,6 @@ async def search_jobs(
 
     conditions = []
 
-    # Filtre active
     if active is not None:
         conditions.append(JobLeaddev.active == active)
 
@@ -57,12 +54,10 @@ async def search_jobs(
             )
         )
 
-    # Requête principale
     stmt = select(JobLeaddev)
     if conditions:
         stmt = stmt.where(and_(*conditions))
 
-    # Tri
     if sort.startswith("-"):
         colname = sort[1:]
         col = getattr(JobLeaddev, colname, JobLeaddev.posted_date)
@@ -77,7 +72,7 @@ async def search_jobs(
 
     result = await session.execute(stmt)
     items = result.scalars().all()
-    # Décodage HTML des champs pour chaque job
+
     for job in items:
         if hasattr(job, 'title') and job.title:
             job.title = html.unescape(job.title)
@@ -88,54 +83,65 @@ async def search_jobs(
         if hasattr(job, 'url') and job.url:
             job.url = html.unescape(job.url)
 
-    # Total (pour la pagination côté front)
     if conditions:
         subq = select(JobLeaddev).where(and_(*conditions)).subquery()
         count_stmt = select(func.count()).select_from(subq)
     else:
         count_stmt = select(func.count()).select_from(JobLeaddev)
 
-    total = (await session.execute(count_stmt)).scalar_one()
-
+    result = await session.execute(count_stmt)
+    total = result.scalar_one()
     return items, total
 
-# Sauvegarder un job pour un utilisateur
-async def save_job(session: AsyncSession, user_id: int, job_id: int):
-    # Vérifier que le job existe
+# Save job offer for a user
+async def save_job(session: AsyncSession, user_id: UUID, job_id: int):
     job = await session.get(JobLeaddev, job_id)
     if not job:
-        return None  # Ou lève une exception
+        return None
 
-    # Vérifier unicité (un seul saved par user/job)
     stmt = select(UserSavedJob).where(UserSavedJob.user_id == user_id, UserSavedJob.job_id == job_id)
     result = await session.execute(stmt)
     saved = result.scalar_one_or_none()
     if saved:
-        return saved  # Déjà existant
+        return saved
 
-    # Créer le saved job
     new_saved = UserSavedJob(user_id=user_id, job_id=job_id)
     session.add(new_saved)
     await session.commit()
     await session.refresh(new_saved)
     return new_saved
 
-# Lister les jobs sauvegardés d'un utilisateur avec filtres et pagination
-async def list_saved_jobs(session: AsyncSession, user_id: UUID, status: str = None, q: str = None, page: int = 1, page_size: int = 20):
-    stmt = select(UserSavedJob, JobLeaddev).join(JobLeaddev, UserSavedJob.job_id == JobLeaddev.id).where(UserSavedJob.user_id == user_id)
+# List saved job offers for a user with optional filters and pagination
+async def list_saved_jobs(session: AsyncSession, user_id: UUID, status: Optional[str], q: Optional[str], page: int = 1, page_size: int = 20):
+    conditions = [UserSavedJob.user_id == user_id]
     if status:
-        stmt = stmt.where(UserSavedJob.status == status)
+        conditions.append(UserSavedJob.status == status)
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(
+        conditions.append(
             or_(JobLeaddev.title.ilike(like), JobLeaddev.company.ilike(like), JobLeaddev.location.ilike(like))
         )
-    total = (await session.execute(stmt.with_only_columns(func.count()))).scalar()
-    stmt = stmt.order_by(UserSavedJob.id.desc()).limit(page_size).offset((page - 1) * page_size)
+
+    count_stmt = (
+        select(func.count())
+        .select_from(UserSavedJob)
+        .join(JobLeaddev, UserSavedJob.job_id == JobLeaddev.id)
+        .where(and_(*conditions))
+    )
+    result = await session.execute(count_stmt)
+    total = result.scalar_one()
+
+    stmt = (
+        select(UserSavedJob, JobLeaddev)
+        .join(JobLeaddev, UserSavedJob.job_id == JobLeaddev.id)
+        .where(and_(*conditions))
+        .order_by(UserSavedJob.id.desc())
+        .limit(page_size)
+        .offset((page - 1) * page_size)
+    )
     result = await session.execute(stmt)
     items = []
     for saved, job in result.all():
-        # Décodage HTML des champs du job
         if hasattr(job, 'title') and job.title:
             job.title = html.unescape(job.title)
         if hasattr(job, 'company') and job.company:
@@ -157,8 +163,8 @@ async def list_saved_jobs(session: AsyncSession, user_id: UUID, status: str = No
         ))
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
-# Mettre à jour un job sauvegardé
-async def update_saved_job(session: AsyncSession, user_id: int, saved_id: int, payload: SavedJobUpdate):
+# Update a saved job
+async def update_saved_job(session: AsyncSession, user_id: UUID, saved_id: int, payload: SavedJobUpdate):
     stmt = select(UserSavedJob).where(UserSavedJob.id == saved_id, UserSavedJob.user_id == user_id)
     result = await session.execute(stmt)
     saved = result.scalar_one_or_none()
@@ -170,8 +176,8 @@ async def update_saved_job(session: AsyncSession, user_id: int, saved_id: int, p
     await session.refresh(saved)
     return saved
 
-# Supprimer un job sauvegardé
-async def delete_saved_job(session: AsyncSession, user_id: int, saved_id: int):
+# Delete a saved job
+async def delete_saved_job(session: AsyncSession, user_id: UUID, saved_id: int):
     stmt = select(UserSavedJob).where(UserSavedJob.id == saved_id, UserSavedJob.user_id == user_id)
     result = await session.execute(stmt)
     saved = result.scalar_one_or_none()
@@ -181,8 +187,8 @@ async def delete_saved_job(session: AsyncSession, user_id: int, saved_id: int):
     await session.commit()
     return True
 
-# Récupérer la liste des job_id sauvegardés par un utilisateur
-async def get_saved_job_ids(session: AsyncSession, user_id: int):
+# Get the list of saved job IDs for a user
+async def get_saved_job_ids(session: AsyncSession, user_id: UUID):
     stmt = select(UserSavedJob.job_id).where(UserSavedJob.user_id == user_id)
     result = await session.execute(stmt)
     return [row[0] for row in result.all()]
