@@ -8,7 +8,8 @@ app = FastAPI(title="Jobs Visualizer API", version="0.1.0")
 
 
 # CORS
-origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+raw_origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+origins: list[str] = [str(origin) for origin in raw_origins]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
